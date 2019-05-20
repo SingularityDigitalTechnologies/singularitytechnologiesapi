@@ -3,6 +3,7 @@ import datetime
 import hmac
 import json
 import os
+import pprint
 import requests
 
 from collections import namedtuple
@@ -94,6 +95,8 @@ class AbstractRequest(object):
             return response
 
     def request(self, endpoint, payload=''):
+        self.endpoint = endpoint
+
         headers = self.get_headers(endpoint, payload)
         response = self.send_request(
             endpoint,
@@ -101,7 +104,7 @@ class AbstractRequest(object):
             headers=headers,
         )
 
-        trace = response.headers.get('X-atlas-trace', '')
+        self.trace = response.headers.get('X-atlas-trace', '')
 
         payload = None
         try:
@@ -109,7 +112,15 @@ class AbstractRequest(object):
         except ValueError:
             pass
 
+        self.payload = payload
+        self.response = response
+
         return payload, response.status_code
+
+    def summary(self):
+        print('[%d][%s][%s]' % (self.response.status_code, self.endpoint.path, self.trace))
+        if self.payload or self.response.text:
+            pprint.PrettyPrinter(indent=4).pprint(self.payload or self.response.text)
 
 
 class Ping(AbstractRequest):
@@ -122,34 +133,38 @@ class BatchCreate(AbstractRequest):
 
     def __init__(self, options, *args, **kwargs):
         super().__init__(options, *args, **kwargs)
+        job_payload = options.get('payload_file', '')
+        if not job_payload:
+            raise APIUsageException('Need jobs to create a batch!')
 
-        self.payload = options.get('payload', '')
+        with open(job_payload, 'r') as f:
+            self.job_payload = json.load(f)
 
         self.mode = options.get('mode', '')
         if not self.mode:
             raise APIUsageException('Mode must be set to either Pilot or Production')
 
-        cpus = options.get('cpus') or 0
-        if type(cpus) != int:
-            if not cpus.isdigit():
-                raise APIUsageException('CPUs must be an integer number')
+        cpus = options.get('cpus') or '0'
+        try:
+            float(cpus)
+        except ValueError():
+            raise SystemExit('CPUS must be an integer number')
 
-        self.cpus = int(cpus)
-        gpus = options.get('gpus') or 0
-        if type(gpus) != int:
-            if not gpus.isdigit():
-                raise APIUsageException('GPUs must be an integer number')
+        self.cpus = float(cpus)
 
-        self.gpus = int(gpus)
+        gpus = options.get('gpus') or '0'
+        try:
+            float(gpus)
+        except ValueError():
+            raise SystemExit('GPUS must be an integer number')
+
+        self.gpus = float(gpus)
 
     def run(self):
         payload = json.dumps({
             'mode': self.mode,
-            'jobs': self.payload,
-            'requisitions': {
-                'cpu': {'kind': 'cpu', 'quantity': self.cpus},
-                'gpu': {'kind': 'gpu', 'quantity': self.gpus},
-            }
+            'jobs': self.job_payload,
+            'requisitions': {'cpu': self.cpus, 'gpu': self.gpus}
         })
 
         return self.request(BATCH_CREATE, payload)
@@ -184,6 +199,22 @@ class BatchSummary(AbstractRequest):
 
     def run(self):
         return self.request(self.endpoint)
+
+    def summary(self):
+        print('[%d][%s][%s]' % (self.response.status_code, self.endpoint.path, self.trace))
+
+        if self.payload:
+            for batch in self.payload:
+                batch_id = batch.get('id', '')
+                status = batch.get('status', '')
+                started = batch.get('created_at', '')
+                if not self.since:
+                    print('%s, %s: %s' % (batch_id, started, status))
+                    continue
+
+                started_datetime = datetime.datetime.strptime(started, '%Y-%m-%dT%H:%M:%S.%fZ')
+                if started_datetime >= self.since:
+                    print('%s, %s: %s' % (batch_id, started, status))
 
 
 class JobStatus(AbstractRequest):
