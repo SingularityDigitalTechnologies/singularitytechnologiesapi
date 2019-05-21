@@ -115,7 +115,7 @@ class AbstractRequest(object):
         self.payload = payload
         self.response = response
 
-        return payload, response.status_code
+        return self.payload, response.status_code
 
     def summary(self):
         print('[%d][%s][%s]' % (self.response.status_code, self.endpoint.path, self.trace))
@@ -133,12 +133,9 @@ class BatchCreate(AbstractRequest):
 
     def __init__(self, options, *args, **kwargs):
         super().__init__(options, *args, **kwargs)
-        job_payload = options.get('payload_file', '')
-        if not job_payload:
+        self.job_payload = options.get('payload', '')
+        if not self.job_payload:
             raise APIUsageException('Need jobs to create a batch!')
-
-        with open(job_payload, 'r') as f:
-            self.job_payload = json.load(f)
 
         self.mode = options.get('mode', '')
         if not self.mode:
@@ -177,9 +174,9 @@ class BatchStatus(AbstractRequest):
 
         self.endpoint = BATCH_INFO
 
-        uuid = options.get('uuid')
-        if uuid:
-            self.endpoint = Endpoint(path='/batch/%s' % uuid, method='GET')
+        batch_uuid = options.get('uuid')
+        if batch_uuid:
+            self.endpoint = Endpoint(path='/batch/%s' % batch_uuid, method='GET')
 
     def run(self):
         return self.request(self.endpoint)
@@ -205,16 +202,16 @@ class BatchSummary(AbstractRequest):
 
         if self.payload:
             for batch in self.payload:
-                batch_id = batch.get('id', '')
+                batch_uuid = batch.get('uuid', '')
                 status = batch.get('status', '')
                 started = batch.get('created_at', '')
                 if not self.since:
-                    print('%s, %s: %s' % (batch_id, started, status))
+                    print('%s %s: %s' % (batch_uuid, started, status))
                     continue
 
                 started_datetime = datetime.datetime.strptime(started, '%Y-%m-%dT%H:%M:%S.%fZ')
                 if started_datetime >= self.since:
-                    print('%s, %s: %s' % (batch_id, started, status))
+                    print('%s %s: %s' % (batch_uuid, started, status))
 
 
 class JobStatus(AbstractRequest):
