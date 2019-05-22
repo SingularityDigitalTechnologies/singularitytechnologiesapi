@@ -115,7 +115,7 @@ class AbstractRequest(object):
         self.payload = payload
         self.response = response
 
-        return self.payload, response.status_code
+        return self.payload or self.response.text, response.status_code
 
     def summary(self):
         print('[%d][%s][%s]' % (self.response.status_code, self.endpoint.path, self.trace))
