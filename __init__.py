@@ -14,6 +14,7 @@ from urllib.parse import urlunparse
 from requests import Request
 from requests import Session
 
+from singularityapi.data import Sharder
 from singularityapi.exceptions import APIUsageException
 
 
@@ -34,6 +35,9 @@ DATASET_SUMMARY = Endpoint(path='/data/%s', method='GET')
 SHARD = Endpoint(path='/data/%s/shard/%s', method='POST')
 JOB_CANCEL = Endpoint(path='/job/%s', method='DELETE')
 BATCH_CANCEL = Endpoint(path='/batch/%s', method='DELETE')
+
+MODEL_DOWNLOAD = Endpoint(path='/model/%s/%s', method='GET')
+MODEL_DELETE = Endpoint(path='/model/%s/%s', method='DELETE')
 
 
 class AbstractRequest(object):
@@ -115,18 +119,22 @@ class AbstractRequest(object):
         self.payload = payload
         self.response = response
 
-        return self.payload, response.status_code
+        return self.payload or self.response.content, response.status_code
 
     def summary(self):
         print('[%d][%s][%s]' % (self.response.status_code, self.endpoint.path, self.trace))
-        if self.payload or self.response.text:
-            pprint.PrettyPrinter(indent=4).pprint(self.payload or self.response.text)
+        if self.payload:
+            pprint.PrettyPrinter(indent=4).pprint(self.payload)
 
 
 class Ping(AbstractRequest):
 
     def run(self):
         return self.request(PING)
+
+    def summary(self):
+        super().__init__()
+        pprint.PrettyPrinter(indent=4).pprint(self.response.content)
 
 
 class BatchCreate(AbstractRequest):
@@ -359,3 +367,22 @@ class DataSetSummary(AbstractRequest):
         path = DATASET_SUMMARY.path % self.name
         endpoint = Endpoint(path=path, method='GET')
         return self.request(endpoint)
+
+
+class ModelDownload(AbstractRequest):
+    def __init__(self, options, *args, **kwargs):
+        super().__init__(options, *args, **kwargs)
+
+        self.batch_uuid = options.get('batch_uuid')
+        self.job_uuid = options.get('job_uuid')
+        self.download_path = options.get('download_path')
+
+    def run(self):
+        path = MODEL_DOWNLOAD.path % (self.batch_uuid, self.job_uuid)
+        endpoint = Endpoint(path=path, method='GET')
+        model, status_code = self.request(endpoint)
+        if model:
+            with open(self.download_path, 'wb') as f:
+                f.write(model)
+
+        return None, status_code
