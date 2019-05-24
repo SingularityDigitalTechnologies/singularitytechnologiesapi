@@ -133,7 +133,7 @@ class Ping(AbstractRequest):
         return self.request(PING)
 
     def summary(self):
-        super().__init__()
+        super().summary()
         pprint.PrettyPrinter(indent=4).pprint(self.response.content)
 
 
