@@ -7,3 +7,9 @@ __pycache__
 
 *.swp
 *.swo
+
+# Build stuff
+
+build
+dist
+singularitytechnologies.api.egg-info

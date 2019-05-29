@@ -147,7 +147,7 @@ class BatchCreate(AbstractRequest):
         try:
             float(cpus)
         except ValueError():
-            raise SystemExit('CPUS must be an integer number')
+            raise SystemExit('CPUs must be an integer number')
 
         self.cpus = float(cpus)
 
@@ -155,7 +155,7 @@ class BatchCreate(AbstractRequest):
         try:
             float(gpus)
         except ValueError():
-            raise SystemExit('GPUS must be an integer number')
+            raise SystemExit('GPUs must be an integer number')
 
         self.gpus = float(gpus)
 

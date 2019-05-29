@@ -7,9 +7,6 @@ import zipfile
 
 import asyncio
 
-# Find all files
-# Randomly but repeatably split files into shards
-
 
 IMPRINT_FILE_NAME = 'imprint.json'
 SHARD_MAX_SIZE = 10 * 1024 * 1024
