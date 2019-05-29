@@ -2,7 +2,6 @@ import base64
 import datetime
 import hmac
 import json
-import os
 import pprint
 import requests
 
@@ -22,14 +21,10 @@ Endpoint = namedtuple('Endpoint', ['path', 'method'])
 
 PING = Endpoint(path='/ping', method='GET')
 
-ATLAS_STATUS = Endpoint(path='/status', method='GET')
 BATCH_INFO = Endpoint(path='/batch', method='GET')
 BATCH_CREATE = Endpoint(path='/batch', method='POST')
 JOB_INFO = Endpoint(path='/job', method='GET')
 
-GENERATE_HMAC = Endpoint(path='/sec/key', method='POST')
-USER_ADD = Endpoint(path='/user', method='POST')
-COMPANY_ADD = Endpoint(path='/company', method='POST')
 DATASET = Endpoint(path='/data', method='POST')
 DATASET_SUMMARY = Endpoint(path='/data/%s', method='GET')
 SHARD = Endpoint(path='/data/%s/shard/%s', method='POST')
@@ -37,7 +32,6 @@ JOB_CANCEL = Endpoint(path='/job/%s', method='DELETE')
 BATCH_CANCEL = Endpoint(path='/batch/%s', method='DELETE')
 
 MODEL_DOWNLOAD = Endpoint(path='/model/%s/%s', method='GET')
-MODEL_DELETE = Endpoint(path='/model/%s/%s', method='DELETE')
 
 
 class AbstractRequest(object):
@@ -237,29 +231,6 @@ class JobStatus(AbstractRequest):
         return self.request(self.endpoint)
 
 
-class AtlasStatus(AbstractRequest):
-
-    def __init__(self, options, *args, **kwargs):
-        super().__init__(options, *args, **kwargs)
-
-        self.endpoint = ATLAS_STATUs
-
-    def run(self):
-        return self.request(self.endpoint)
-
-
-class GenerateHMAC(AbstractRequest):
-
-    def __init__(self, options, *args, **kwargs):
-        super().__init__(options, *args, **kwargs)
-
-        self.email = options.get('email')
-        self.endpoint = GENERATE_HMAC
-
-    def run(self):
-        return self.request(self.endpoint, json.dumps({'email': self.email}))
-
-
 class Cancel(AbstractRequest):
     def __init__(self, options, kind, **kwargs):
         super().__init__(options, kind, **kwargs)
@@ -275,42 +246,6 @@ class Cancel(AbstractRequest):
 
         endpoint = Endpoint(path=path, method='DELETE')
         return self.request(endpoint)
-
-
-class UserAdd(AbstractRequest):
-    def __init__(self, options, *args, **kwargs):
-        super().__init__(options, *args, **kwargs)
-
-        self.first_name = options.get('first_name', '')
-        self.last_name = options.get('last_name', '')
-        self.email = options.get('email', '')
-        self.user_type = options.get('user_type', '').lower()
-        self.password = options.get('password', '')
-
-        self.endpoint = UsER_ADD
-
-    def run(self):
-        return self.request(
-            self.endpoint,
-            json.dumps({
-                'first_name': self.first_name,
-                'last_name': self.last_name,
-                'email': self.email,
-                'user_type': self.user_type,
-                'password': self.password,
-            })
-        )
-
-
-class CompanyAdd(AbstractRequest):
-    def __init__(self, options, *args, **kwargs):
-        super().__init__(options, *args, **kwargs)
-
-        self.name = options.get('name')
-        self.endpoint = COMPANY_ADD
-
-    def run(self):
-        return self.request(self.endpoint, json.dumps({'name': self.name}))
 
 
 class DataSetAdd(AbstractRequest):
