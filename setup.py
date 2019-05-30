@@ -5,7 +5,7 @@ with open('README.md', 'r') as f:
 
 setuptools.setup(
     name='singularitytechnologies.singularitytechnologiesapi',
-    version='0.2.0dev',
+    version='0.2.1dev',
     author='Sam Lacey',
     author_email='sam.lacey@singularity-technologies.io',
     description='Python implementation of the Singularity Technologies API',
@@ -14,7 +14,6 @@ setuptools.setup(
     url='https://github.com/singularitydigitaltechnologies/singularitytechnologiesapi',
     packages=setuptools.find_packages(),
     install_requires=[
-        'asyncio',
         'requests'
     ],
     classifiers=[
