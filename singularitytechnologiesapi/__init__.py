@@ -248,6 +248,7 @@ class Cancel(AbstractRequest):
             path = JOB_CANCEL.path % self.uuid
 
         endpoint = Endpoint(path=path, method='DELETE')
+
         return self.request(endpoint)
 
 
@@ -300,6 +301,7 @@ class DataSetSummary(AbstractRequest):
     def run(self):
         path = DATASET_SUMMARY.path % self.name
         endpoint = Endpoint(path=path, method='GET')
+
         return self.request(endpoint)
 
 
@@ -309,14 +311,9 @@ class ModelDownload(AbstractRequest):
 
         self.batch_uuid = options.get('batch_uuid')
         self.job_uuid = options.get('job_uuid')
-        self.download_path = options.get('download_path')
 
     def run(self):
         path = MODEL_DOWNLOAD.path % (self.batch_uuid, self.job_uuid)
         endpoint = Endpoint(path=path, method='GET')
-        model, status_code = self.request(endpoint)
-        if model:
-            with open(self.download_path, 'wb') as f:
-                f.write(model)
 
-        return None, status_code
+        return self.request(endpoint)

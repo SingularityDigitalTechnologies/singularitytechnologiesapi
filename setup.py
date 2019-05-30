@@ -5,7 +5,7 @@ with open('README.md', 'r') as f:
 
 setuptools.setup(
     name='singularitytechnologies.singularitytechnologiesapi',
-    version='0.2.1dev',
+    version='0.2.2dev',
     author='Sam Lacey',
     author_email='sam.lacey@singularity-technologies.io',
     description='Python implementation of the Singularity Technologies API',
