@@ -13,8 +13,7 @@ from urllib.parse import urlunparse
 from requests import Request
 from requests import Session
 
-from singularityapi.data import Sharder
-from singularityapi.exceptions import APIUsageException
+from .exceptions import APIUsageException
 
 
 Endpoint = namedtuple('Endpoint', ['path', 'method'])
@@ -113,7 +112,11 @@ class AbstractRequest(object):
         self.payload = payload
         self.response = response
 
-        return self.payload or self.response.content, response.status_code
+        content = self.response.content.decode('utf-8')
+        if content == 'null':
+            content = ''
+
+        return self.payload or content or {}, response.status_code
 
     def summary(self):
         print('[%d][%s][%s]' % (self.response.status_code, self.endpoint.path, self.trace))
@@ -128,7 +131,7 @@ class Ping(AbstractRequest):
 
     def summary(self):
         super().summary()
-        pprint.PrettyPrinter(indent=4).pprint(self.response.content)
+        pprint.PrettyPrinter(indent=4).pprint(self.response.content.decode('utf-8'))
 
 
 class BatchCreate(AbstractRequest):
@@ -253,13 +256,6 @@ class DataSetAdd(AbstractRequest):
         super().__init__(options, *args, **kwargs)
 
         self.name = options.get('name')
-        location = options.get('location')
-        if not location:
-            raise APIUsageException('Location not defined')
-
-        imprint_location = options.get('imprint_location')
-        if not imprint_location:
-            raise APIUsageException('Imprint location not defined')
 
         pilot_count = options.get('pilot_count', 0)
         if not pilot_count:
@@ -272,24 +268,27 @@ class DataSetAdd(AbstractRequest):
 
         self.dataset_endpoint = DATASET
 
-        self.sharder = Sharder(location, imprint_location)
-
     def run(self):
         request_payload = json.dumps({
             'name': self.name,
             'pilot_count': self.pilot_count
         })
 
-        payload, _ = self.request(self.dataset_endpoint, request_payload)
-        dataset_uuid = payload.get('dataset_uuid')
-        if not dataset_uuid:
-            raise APIUsageException('No dataset id recieved')
+        return self.request(self.dataset_endpoint, request_payload)
 
-        for shard_id, shard in self.sharder.get_new_shards():
-            shard_path = SHARD.path % (dataset_uuid, shard_id)
-            endpoint = Endpoint(path=shard_path, method='POST')
 
-            self.request(endpoint, base64.b64encode(shard).decode())
+class ShardAdd(AbstractRequest):
+    def __init__(self, options, *args, **kwargs):
+        super().__init__(options, *args, **kwargs)
+        self.data_set_uuid = options.get('data_set_uuid')
+        self.shard_id = options.get('shard_id')
+        self.shard = options.get('shard')
+
+    def run(self):
+        shard_path = SHARD.path % (self.data_set_uuid, self.shard_id)
+        endpoint = Endpoint(path=shard_path, method='POST')
+
+        return self.request(endpoint, base64.b64encode(self.shard).decode())
 
 
 class DataSetSummary(AbstractRequest):
