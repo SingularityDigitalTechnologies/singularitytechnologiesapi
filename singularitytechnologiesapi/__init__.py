@@ -46,6 +46,8 @@ class AbstractRequest(object):
         self.secret = options.get('secret', '')
         self.api_key = options.get('api_key', '')
 
+        self.body = None
+
     def generate_sha512_hmac(self, secret, method, endpoint, payload):
         base_sig = '%s\n%s\n%s' % (method, endpoint, payload)
         return hmac.new(
@@ -91,40 +93,43 @@ class AbstractRequest(object):
         else:
             return response
 
+    def handle_response(self):
+        payload = {}
+        try:
+            payload = self.response.json()
+        except ValueError:
+            pass
+
+        self.body = payload
+        return self.body
+
     def request(self, endpoint, payload=''):
         self.endpoint = endpoint
 
         headers = self.get_headers(endpoint, payload)
-        response = self.send_request(
+        self.response = self.send_request(
             endpoint,
             payload=payload,
             headers=headers,
         )
 
-        self.trace = response.headers.get('X-atlas-trace', '')
+        self.trace = self.response.headers.get('X-atlas-trace', '')
+        return self.handle_response(), self.response.status_code
 
-        payload = None
-        try:
-            payload = response.json()
-        except ValueError:
-            pass
+    def summary(self):
+        print('[%d][%s][%s]' % (self.response.status_code, self.endpoint.path, self.trace))
+        if self.body:
+            pprint.PrettyPrinter(indent=4).pprint(self.body)
 
-        self.payload = payload
-        self.response = response
 
+class Ping(AbstractRequest):
+
+    def handle_response(self):
         content = self.response.content.decode('utf-8')
         if content == 'null':
             content = ''
 
-        return self.payload or content or {}, response.status_code
-
-    def summary(self):
-        print('[%d][%s][%s]' % (self.response.status_code, self.endpoint.path, self.trace))
-        if self.payload:
-            pprint.PrettyPrinter(indent=4).pprint(self.payload)
-
-
-class Ping(AbstractRequest):
+        return content
 
     def run(self):
         return self.request(PING)
@@ -205,8 +210,8 @@ class BatchSummary(AbstractRequest):
     def summary(self):
         print('[%d][%s][%s]' % (self.response.status_code, self.endpoint.path, self.trace))
 
-        if self.payload:
-            for batch in self.payload:
+        if self.body:
+            for batch in self.body:
                 batch_uuid = batch.get('uuid', '')
                 status = batch.get('status', '')
                 started = batch.get('created_at', '')
@@ -311,6 +316,9 @@ class ModelDownload(AbstractRequest):
 
         self.batch_uuid = options.get('batch_uuid')
         self.job_uuid = options.get('job_uuid')
+
+    def handle_response(self):
+        return self.response.content
 
     def run(self):
         path = MODEL_DOWNLOAD.path % (self.batch_uuid, self.job_uuid)
